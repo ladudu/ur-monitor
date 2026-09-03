@@ -9,6 +9,7 @@ import json
 import logging
 from logging.handlers import RotatingFileHandler
 import os
+import re
 import smtplib
 import sqlite3
 import sys
@@ -24,6 +25,34 @@ from urllib.parse import urlparse
 from ur_check import DEFAULT_URL, fetch_rooms, filtered
 
 
+def load_env_file(path: Path) -> int:
+    """Load a small dotenv-style file without overriding real environment variables."""
+    if not path.is_file():
+        return 0
+    loaded = 0
+    with path.open(encoding="utf-8-sig") as config:
+        for line_number, raw_line in enumerate(config, start=1):
+            line = raw_line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if line.startswith("export "):
+                line = line[7:].lstrip()
+            if "=" not in line:
+                raise ValueError(f"配置文件第 {line_number} 行缺少等号")
+            key, value = line.split("=", 1)
+            key, value = key.strip(), value.strip()
+            if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", key):
+                raise ValueError(f"配置文件第 {line_number} 行变量名无效: {key!r}")
+            if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+                value = value[1:-1]
+            if key not in os.environ:
+                os.environ[key] = value
+                loaded += 1
+    return loaded
+
+
+CONFIG_FILE = Path(os.getenv("CONFIG_FILE", "/config/ur-monitor.env"))
+CONFIG_VALUES_LOADED = load_env_file(CONFIG_FILE)
 LOG = logging.getLogger("ur-monitor")
 DB_PATH = Path(os.getenv("DATABASE_PATH", "/data/ur-monitor.db"))
 PROPERTY_URLS = [u.strip() for u in os.getenv("UR_URLS", DEFAULT_URL).split(",") if u.strip()]
@@ -422,6 +451,7 @@ def main() -> None:
     args = parser.parse_args()
     configure_logging()
     LOG.info("UR Monitor 启动：pid=%d, log=%s", os.getpid(), LOG_PATH)
+    LOG.info("配置文件：path=%s, loaded_values=%d", CONFIG_FILE, CONFIG_VALUES_LOADED)
     connect().close()
     if args.test_email:
         send_email("[UR房源监控] 测试邮件", f"邮件配置正常。\n发送时间: {now_iso()}")

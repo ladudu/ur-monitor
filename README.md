@@ -56,6 +56,17 @@ docker compose logs -f ur-monitor
 
 源码部署的数据保存在 `./data`。
 
+### 群晖单容器部署（不使用 Compose）
+
+程序会在启动时自动读取 `/config/ur-monitor.env`。在 Container Manager 创建 `zhanggqdocker/ur-monitor:latest` 容器，然后设置：
+
+- 端口：群晖 `8080` → 容器 `8080`
+- 文件夹：`/volume1/docker/ur-monitor/data` → `/data`
+- 文件夹：`/volume1/docker/ur-monitor/config` → `/config`（只读）
+- 自动重新启动：开启
+
+把 [`.env.example`](.env.example) 保存为 `/volume1/docker/ur-monitor/config/ur-monitor.env`。无需在群晖界面逐项填写环境变量。若同时设置了容器环境变量，同名的容器环境变量优先。也可通过容器环境变量 `CONFIG_FILE` 指定其他容器内路径。
+
 ### 邮件配置
 
 项目支持标准 SMTP。Resend 示例：
@@ -67,7 +78,7 @@ SMTP_STARTTLS=true
 SMTP_SSL=false
 SMTP_USER=resend
 SMTP_PASSWORD=re_your_api_key
-EMAIL_FROM=UR Monitor <notify@your-verified-domain.example>
+EMAIL_FROM="UR Monitor <notify@your-verified-domain.example>"
 EMAIL_TO=you@example.com
 ```
 
@@ -144,6 +155,8 @@ docker compose logs -f ur-monitor
 
 標準SMTPに対応し、Resend、Gmail、Outlook、NASのSMTPなどを利用できます。設定例は中国語セクションと [`.env.example`](.env.example) を参照してください。複数宛先はカンマ区切りです。
 
+Composeを使わない場合、プログラムは `/config/ur-monitor.env` を起動時に自動読込します。Container Managerで `/volume1/docker/ur-monitor/config` をコンテナの `/config` に読み取り専用で、`/volume1/docker/ur-monitor/data` を `/data` にマウントしてください。[`.env.example`](.env.example) を `config/ur-monitor.env` として保存すれば、GUIで環境変数を1項目ずつ入力する必要はありません。重複するコンテナ環境変数が優先されます。
+
 `UR_URLS` は複数指定可能です。`CHECK_INTERVAL_SECONDS` の既定値は600秒、最小値は300秒です。`MIN_RENT`、`MAX_RENT`、`LAYOUTS` は任意です。初回から通知する場合は `NOTIFY_ON_FIRST_RUN=true` を設定します。
 
 ### テストとAPI
@@ -203,6 +216,8 @@ docker compose logs -f ur-monitor
 ```
 
 Source deployments persist data under `./data`. Any standard SMTP provider can be used; see the Resend example above and [`.env.example`](.env.example). Separate multiple recipients with commas.
+
+Without Compose, the application automatically loads `/config/ur-monitor.env` at startup. In Container Manager, mount `/volume1/docker/ur-monitor/config` read-only at `/config` and `/volume1/docker/ur-monitor/data` at `/data`. Save [`.env.example`](.env.example) as `config/ur-monitor.env`; no one-by-one GUI environment entry is required. Container environment variables take precedence over duplicate file values.
 
 `UR_URLS` accepts comma-separated URLs. `CHECK_INTERVAL_SECONDS` defaults to 600 seconds and is clamped to a minimum of 300 seconds. Filters are optional. Set `NOTIFY_ON_FIRST_RUN=true` to email the initial baseline. Never commit the real `.env`.
 
