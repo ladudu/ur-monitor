@@ -1,4 +1,9 @@
 FROM python:3.12-alpine
+ARG APP_VERSION=1.4.0
+ENV APP_VERSION=${APP_VERSION}
+LABEL org.opencontainers.image.title="UR Vacancy Monitor" \
+      org.opencontainers.image.version="${APP_VERSION}" \
+      org.opencontainers.image.source="https://github.com/ladudu/ur-monitor"
 WORKDIR /app
 COPY app.py ur_check.py ./
 RUN mkdir -p /data /config && addgroup -S app && adduser -S app -G app && chown -R app:app /data /config /app

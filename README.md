@@ -21,6 +21,7 @@ Docker Hub: [`zhanggqdocker/ur-monitor`](https://hub.docker.com/r/zhanggqdocker/
 - SMTP 暂时失败时将邮件保存在 SQLite，下一轮自动重试
 - SQLite 保存当前状态、每次检查和每次上下架/资料变化
 - 提供网页面板、`/healthz` 健康检查和 JSON 历史接口
+- 在启动日志、网页、`/api/version` 和镜像 OCI 标签中显示实际软件版本
 - 支持租金、户型筛选以及日志轮转
 - 只使用 Python 标准库；镜像支持 `linux/amd64` 和 `linux/arm64`
 
@@ -108,6 +109,7 @@ curl http://127.0.0.1:8080/healthz
 - 当前面板：`http://HOST:8080/`
 - 变化履历：`http://HOST:8080/api/events`
 - 检查履历：`http://HOST:8080/api/checks`
+- 软件版本：`http://HOST:8080/api/version`
 
 事件类型为 `baseline`、`added`、`removed` 和 `updated`。日志默认写入 `/data/ur-monitor.log`，达到 5 MB 后轮转，并保留 3 个备份。
 
@@ -124,6 +126,7 @@ curl http://127.0.0.1:8080/healthz
 - SMTP送信に失敗したメールはSQLiteに保存し、次回に自動再送
 - 現在状態、全チェック、掲載・終了・情報変更の履歴をSQLiteに保存
 - Webダッシュボード、`/healthz`、JSON履歴APIを提供
+- 起動ログ、画面、`/api/version`、OCIイメージラベルに実際のバージョンを表示
 - 家賃・間取りフィルター、ログローテーション対応
 - Python標準ライブラリのみ使用。イメージは `linux/amd64` と `linux/arm64` に対応
 
@@ -170,6 +173,7 @@ curl http://127.0.0.1:8080/healthz
 - ダッシュボード：`http://HOST:8080/`
 - 変更履歴：`http://HOST:8080/api/events`
 - チェック履歴：`http://HOST:8080/api/checks`
+- バージョン：`http://HOST:8080/api/version`
 
 イベント種別は `baseline`、`added`、`removed`、`updated` です。実際の空室状況はUR公式ページまたは営業窓口で必ず確認してください。
 
@@ -186,6 +190,7 @@ curl http://127.0.0.1:8080/healthz
 - Persists failed SMTP messages in SQLite and retries them on the next cycle
 - Stores current state, every check, and every listing transition in SQLite
 - Provides a web dashboard, `/healthz`, and JSON history APIs
+- Exposes the actual version in startup logs, the dashboard, `/api/version`, and OCI labels
 - Supports rent/layout filters and rotating logs
 - Uses only the Python standard library; images support `linux/amd64` and `linux/arm64`
 
@@ -232,6 +237,7 @@ curl http://127.0.0.1:8080/healthz
 - Dashboard: `http://HOST:8080/`
 - Change history: `http://HOST:8080/api/events`
 - Check history: `http://HOST:8080/api/checks`
+- Version: `http://HOST:8080/api/version`
 
 Event types are `baseline`, `added`, `removed`, and `updated`. Logs default to `/data/ur-monitor.log`, rotate at 5 MB, and retain three backups.
 

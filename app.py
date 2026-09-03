@@ -53,6 +53,7 @@ def load_env_file(path: Path) -> int:
 
 CONFIG_FILE = Path(os.getenv("CONFIG_FILE", "/config/ur-monitor.env"))
 CONFIG_VALUES_LOADED = load_env_file(CONFIG_FILE)
+APP_VERSION = os.getenv("APP_VERSION", "dev")
 LOG = logging.getLogger("ur-monitor")
 DB_PATH = Path(os.getenv("DATABASE_PATH", "/data/ur-monitor.db"))
 PROPERTY_URLS = [u.strip() for u in os.getenv("UR_URLS", DEFAULT_URL).split(",") if u.strip()]
@@ -371,7 +372,7 @@ def dashboard() -> str:
             cards.append(f'<section><header><div><h2>{property_label(url)}</h2><a href="{html.escape(url)}" target="_blank">打开 UR 官网 ↗</a></div><em>{len(rooms)} 套</em></header><p class="meta">最后检查：{checked} · 状态：{status}</p>{items}</section>')
     return f"""<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="60"><title>UR 房源监控</title><style>
     *{{box-sizing:border-box}} body{{margin:0;background:#f4f1eb;color:#24221f;font:15px system-ui,sans-serif}} main{{max-width:880px;margin:auto;padding:42px 18px}} h1{{font-size:28px;margin:0 0 8px}} .lead{{color:#706b62;margin:0 0 28px}} section{{background:#fff;border:1px solid #ded9d0;border-radius:16px;padding:22px;margin:18px 0;box-shadow:0 5px 24px #4238170d}} header{{display:flex;justify-content:space-between;align-items:start}} h2{{margin:0 0 5px}} header a{{color:#6e6556}} em{{background:#263f36;color:#fff;border-radius:99px;padding:7px 12px;font-style:normal}} .meta{{color:#8a8378;font-size:13px;border-bottom:1px solid #eee9e1;padding-bottom:15px}} .room{{display:grid;grid-template-columns:1fr 1fr auto;gap:12px;align-items:center;padding:16px 2px;border-bottom:1px solid #eee9e1;text-decoration:none;color:inherit}} .room:last-child{{border:0}} .room span{{color:#6f695f}} .room strong{{color:#a44a2b;font-size:18px}} small{{color:#7d7569;font-weight:400}} .empty{{color:#8a8378;padding:18px 0 0}} @media(max-width:600px){{.room{{grid-template-columns:1fr auto}}.room span{{grid-row:2}}}}
-    </style></head><body><main><h1>UR 房源监控</h1><p class="lead">每 {CHECK_INTERVAL // 60} 分钟自动检查；页面每分钟刷新。</p>{''.join(cards)}</main></body></html>"""
+    </style></head><body><main><h1>UR 房源监控</h1><p class="lead">版本 {html.escape(APP_VERSION)} · 每 {CHECK_INTERVAL // 60} 分钟自动检查；页面每分钟刷新。</p>{''.join(cards)}</main></body></html>"""
 
 
 def history_data(table: str, limit: int = 500) -> list[dict]:
@@ -399,6 +400,9 @@ class Handler(BaseHTTPRequestHandler):
         path = urlparse(self.path).path
         if path == "/healthz":
             body, content_type, status = b"ok\n", "text/plain; charset=utf-8", 200
+        elif path == "/api/version":
+            body = json_response({"version": APP_VERSION})
+            content_type, status = "application/json; charset=utf-8", 200
         elif path == "/api/events":
             body = json_response({"events": history_data("change_events")})
             content_type, status = "application/json; charset=utf-8", 200
@@ -446,11 +450,12 @@ def main() -> None:
         sys.stdout.reconfigure(encoding="utf-8")
         sys.stderr.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description="UR 房源监控服务")
+    parser.add_argument("--version", action="version", version=APP_VERSION)
     parser.add_argument("--check-once", action="store_true", help="立即检查一次并退出")
     parser.add_argument("--test-email", action="store_true", help="发送测试邮件并退出")
     args = parser.parse_args()
     configure_logging()
-    LOG.info("UR Monitor 启动：pid=%d, log=%s", os.getpid(), LOG_PATH)
+    LOG.info("UR Monitor 启动：version=%s, pid=%d, log=%s", APP_VERSION, os.getpid(), LOG_PATH)
     LOG.info("配置文件：path=%s, loaded_values=%d", CONFIG_FILE, CONFIG_VALUES_LOADED)
     connect().close()
     if args.test_email:
