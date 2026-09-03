@@ -58,6 +58,13 @@ LOG = logging.getLogger("ur-monitor")
 DB_PATH = Path(os.getenv("DATABASE_PATH", "/data/ur-monitor.db"))
 PROPERTY_URLS = [u.strip() for u in os.getenv("UR_URLS", DEFAULT_URL).split(",") if u.strip()]
 CHECK_INTERVAL = max(300, int(os.getenv("CHECK_INTERVAL_SECONDS", "600")))
+NIGHT_START_HOUR = int(os.getenv("NIGHT_START_HOUR", "22"))
+NIGHT_END_HOUR = int(os.getenv("NIGHT_END_HOUR", "9"))
+NIGHT_CHECK_INTERVAL = int(os.getenv("NIGHT_CHECK_INTERVAL_SECONDS", "3600"))
+if not 0 <= NIGHT_START_HOUR <= 23 or not 0 <= NIGHT_END_HOUR <= 23:
+    raise ValueError("NIGHT_START_HOUR 和 NIGHT_END_HOUR 必须是 0–23")
+if NIGHT_CHECK_INTERVAL != 0:
+    NIGHT_CHECK_INTERVAL = max(300, NIGHT_CHECK_INTERVAL)
 MIN_RENT = int(os.environ["MIN_RENT"]) if os.getenv("MIN_RENT") else None
 MAX_RENT = int(os.environ["MAX_RENT"]) if os.getenv("MAX_RENT") else None
 LAYOUTS = [x.strip() for x in os.getenv("LAYOUTS", "").split(",") if x.strip()]
@@ -346,12 +353,39 @@ def run_checks() -> None:
     LOG.info("本轮检查结束")
 
 
+def is_night_period(moment: datetime | None = None) -> bool:
+    hour = (moment or datetime.now(JST)).astimezone(JST).hour
+    if NIGHT_START_HOUR == NIGHT_END_HOUR:
+        return True
+    if NIGHT_START_HOUR < NIGHT_END_HOUR:
+        return NIGHT_START_HOUR <= hour < NIGHT_END_HOUR
+    return hour >= NIGHT_START_HOUR or hour < NIGHT_END_HOUR
+
+
+def active_check_interval(moment: datetime | None = None) -> int:
+    return NIGHT_CHECK_INTERVAL if is_night_period(moment) else CHECK_INTERVAL
+
+
 def scheduler() -> None:
-    LOG.info("定时检查器启动：interval=%d秒", CHECK_INTERVAL)
+    LOG.info(
+        "定时检查器启动：day_interval=%d秒, night=%02d:00-%02d:00, night_interval=%d秒",
+        CHECK_INTERVAL, NIGHT_START_HOUR, NIGHT_END_HOUR, NIGHT_CHECK_INTERVAL,
+    )
+    pause_logged = False
     while True:
+        period = "night" if is_night_period() else "day"
+        interval = active_check_interval()
+        if interval == 0:
+            if not pause_logged:
+                LOG.info("调度状态：period=%s, UR检查已暂停", period)
+                pause_logged = True
+            time.sleep(300)
+            continue
+        pause_logged = False
+        LOG.info("调度检查触发：period=%s, interval=%d秒", period, interval)
         started = time.monotonic()
         run_checks()
-        time.sleep(max(1, CHECK_INTERVAL - (time.monotonic() - started)))
+        time.sleep(max(1, interval - (time.monotonic() - started)))
 
 
 def dashboard() -> str:
@@ -372,7 +406,7 @@ def dashboard() -> str:
             cards.append(f'<section><header><div><h2>{property_label(url)}</h2><a href="{html.escape(url)}" target="_blank">打开 UR 官网 ↗</a></div><em>{len(rooms)} 套</em></header><p class="meta">最后检查：{checked} · 状态：{status}</p>{items}</section>')
     return f"""<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="60"><title>UR 房源监控</title><style>
     *{{box-sizing:border-box}} body{{margin:0;background:#f4f1eb;color:#24221f;font:15px system-ui,sans-serif}} main{{max-width:880px;margin:auto;padding:42px 18px}} h1{{font-size:28px;margin:0 0 8px}} .lead{{color:#706b62;margin:0 0 28px}} section{{background:#fff;border:1px solid #ded9d0;border-radius:16px;padding:22px;margin:18px 0;box-shadow:0 5px 24px #4238170d}} header{{display:flex;justify-content:space-between;align-items:start}} h2{{margin:0 0 5px}} header a{{color:#6e6556}} em{{background:#263f36;color:#fff;border-radius:99px;padding:7px 12px;font-style:normal}} .meta{{color:#8a8378;font-size:13px;border-bottom:1px solid #eee9e1;padding-bottom:15px}} .room{{display:grid;grid-template-columns:1fr 1fr auto;gap:12px;align-items:center;padding:16px 2px;border-bottom:1px solid #eee9e1;text-decoration:none;color:inherit}} .room:last-child{{border:0}} .room span{{color:#6f695f}} .room strong{{color:#a44a2b;font-size:18px}} small{{color:#7d7569;font-weight:400}} .empty{{color:#8a8378;padding:18px 0 0}} @media(max-width:600px){{.room{{grid-template-columns:1fr auto}}.room span{{grid-row:2}}}}
-    </style></head><body><main><h1>UR 房源监控</h1><p class="lead">版本 {html.escape(APP_VERSION)} · 每 {CHECK_INTERVAL // 60} 分钟自动检查；页面每分钟刷新。</p>{''.join(cards)}</main></body></html>"""
+    </style></head><body><main><h1>UR 房源监控</h1><p class="lead">版本 {html.escape(APP_VERSION)} · 日间每 {CHECK_INTERVAL // 60} 分钟、夜间每 {NIGHT_CHECK_INTERVAL // 60 if NIGHT_CHECK_INTERVAL else 0} 分钟检查；页面每分钟刷新。</p>{''.join(cards)}</main></body></html>"""
 
 
 def history_data(table: str, limit: int = 500) -> list[dict]:

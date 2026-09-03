@@ -1,5 +1,5 @@
 FROM python:3.12-alpine
-ARG APP_VERSION=1.4.0
+ARG APP_VERSION=1.5.0
 ENV APP_VERSION=${APP_VERSION}
 LABEL org.opencontainers.image.title="UR Vacancy Monitor" \
       org.opencontainers.image.version="${APP_VERSION}" \

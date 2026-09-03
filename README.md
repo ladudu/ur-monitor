@@ -90,13 +90,17 @@ EMAIL_TO=you@example.com
 ```dotenv
 UR_URLS=https://www.ur-net.go.jp/chintai/kanto/saitama/50_4090.html
 CHECK_INTERVAL_SECONDS=600
+# 日本时间 22:00–09:00 改为每小时检查
+NIGHT_START_HOUR=22
+NIGHT_END_HOUR=9
+NIGHT_CHECK_INTERVAL_SECONDS=3600
 NOTIFY_ON_FIRST_RUN=false
 MIN_RENT=
 MAX_RENT=100000
 LAYOUTS=1DK,1LDK
 ```
 
-多个 URL 和户型用英文逗号分隔。检查间隔最少 300 秒。默认首次运行只建立基准；设为 `NOTIFY_ON_FIRST_RUN=true` 可在首次检查时发送当前房源。
+多个 URL 和户型用英文逗号分隔。日间检查间隔最少 300 秒。夜间按照日本时间计算；把 `NIGHT_CHECK_INTERVAL_SECONDS` 设为 `0` 可以完全暂停夜间 UR 检查。Docker `/healthz` 只检查本地服务是否存活，不会访问 UR。默认首次运行只建立基准；设为 `NOTIFY_ON_FIRST_RUN=true` 可在首次检查时发送当前房源。
 
 ### 测试与接口
 
@@ -160,7 +164,7 @@ docker compose logs -f ur-monitor
 
 Composeを使わない場合、プログラムは `/config/ur-monitor.env` を起動時に自動読込します。Container Managerで `/volume1/docker/ur-monitor/config` をコンテナの `/config` に読み取り専用で、`/volume1/docker/ur-monitor/data` を `/data` にマウントしてください。[`.env.example`](.env.example) を `config/ur-monitor.env` として保存すれば、GUIで環境変数を1項目ずつ入力する必要はありません。重複するコンテナ環境変数が優先されます。
 
-`UR_URLS` は複数指定可能です。`CHECK_INTERVAL_SECONDS` の既定値は600秒、最小値は300秒です。`MIN_RENT`、`MAX_RENT`、`LAYOUTS` は任意です。初回から通知する場合は `NOTIFY_ON_FIRST_RUN=true` を設定します。
+`UR_URLS` は複数指定可能です。日中の `CHECK_INTERVAL_SECONDS` は既定600秒、最小300秒です。日本時間22:00–09:00は `NIGHT_CHECK_INTERVAL_SECONDS=3600` により1時間ごとに確認します。これを `0` にすると夜間のUR確認を完全停止できます。Dockerの `/healthz` はローカルサービスだけを確認し、URへアクセスしません。`MIN_RENT`、`MAX_RENT`、`LAYOUTS` は任意です。
 
 ### テストとAPI
 
@@ -224,7 +228,7 @@ Source deployments persist data under `./data`. Any standard SMTP provider can b
 
 Without Compose, the application automatically loads `/config/ur-monitor.env` at startup. In Container Manager, mount `/volume1/docker/ur-monitor/config` read-only at `/config` and `/volume1/docker/ur-monitor/data` at `/data`. Save [`.env.example`](.env.example) as `config/ur-monitor.env`; no one-by-one GUI environment entry is required. Container environment variables take precedence over duplicate file values.
 
-`UR_URLS` accepts comma-separated URLs. `CHECK_INTERVAL_SECONDS` defaults to 600 seconds and is clamped to a minimum of 300 seconds. Filters are optional. Set `NOTIFY_ON_FIRST_RUN=true` to email the initial baseline. Never commit the real `.env`.
+`UR_URLS` accepts comma-separated URLs. The daytime `CHECK_INTERVAL_SECONDS` defaults to 600 seconds and is clamped to a minimum of 300 seconds. From 22:00 to 09:00 Japan time, `NIGHT_CHECK_INTERVAL_SECONDS=3600` checks hourly; set it to `0` to disable UR polling overnight. Docker `/healthz` only probes the local service and never contacts UR. Filters are optional. Set `NOTIFY_ON_FIRST_RUN=true` to email the initial baseline. Never commit the real `.env`.
 
 ### Tests and endpoints
 
