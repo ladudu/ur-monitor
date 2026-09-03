@@ -1,0 +1,11 @@
+services:
+  ur-monitor:
+    build: .
+    container_name: ur-monitor
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    volumes:
+      - ./data:/data

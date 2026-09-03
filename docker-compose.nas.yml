@@ -1,0 +1,15 @@
+services:
+  ur-monitor:
+    # 启动前设置 DOCKER_IMAGE，例如：yourname/ur-monitor:latest
+    image: ${DOCKER_IMAGE:?请在 .env 中设置 DOCKER_IMAGE}
+    container_name: ur-monitor
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8080}:8080"
+    env_file:
+      - .env
+    volumes:
+      - ur-monitor-data:/data
+
+volumes:
+  ur-monitor-data:
